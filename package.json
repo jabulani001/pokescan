@@ -1,0 +1,16 @@
+{
+  "name": "pokescan",
+  "version": "1.0.0",
+  "description": "PokéScan – Pokémon-Karten per Handykamera erkennen und bewerten",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --format=esm --minify --target=es2020,safari15 --outfile=app.js",
+    "dev": "npm run build -- --watch & python3 -m http.server 8080"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "private": true
+}

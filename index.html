@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0f1115">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PokéScan">
+  <title>PokéScan</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Kamera -->
+  <main id="camera-view">
+    <video id="video" playsinline muted autoplay></video>
+    <div id="frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <div id="status" class="pill">Kamera wird gestartet…</div>
+
+    <header id="topbar">
+      <button id="btn-settings" class="icon-btn" aria-label="Einstellungen">
+        <svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm7.43-2.53a7.8 7.8 0 0 0 0-1.94l2.03-1.58-2-3.46-2.39.96a7.6 7.6 0 0 0-1.68-.97L15 3.5h-4l-.39 2.48c-.6.25-1.17.57-1.68.97l-2.39-.96-2 3.46 2.03 1.58a7.8 7.8 0 0 0 0 1.94l-2.03 1.58 2 3.46 2.39-.96c.51.4 1.08.72 1.68.97L11 20.5h4l.39-2.48c.6-.25 1.17-.57 1.68-.97l2.39.96 2-3.46-2.03-1.58Z"/></svg>
+      </button>
+      <button id="btn-auto" class="chip on" aria-pressed="true">Auto-Scan</button>
+      <button id="btn-cart" class="icon-btn" aria-label="Warenkorb">
+        <svg viewBox="0 0 24 24"><path d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM5.2 4H2V2h4.8l.9 2H21l-3.4 8.1a2 2 0 0 1-1.84 1.23H8.1l-.9 1.67h11.8v2H4l2.7-4.9L5.2 4Z"/></svg>
+        <b id="cart-badge" hidden>0</b>
+      </button>
+    </header>
+
+    <footer id="bottombar">
+      <button id="btn-search" class="icon-btn" aria-label="Manuell suchen">
+        <svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 0 1 6.32 12.9l5.39 5.39-1.42 1.42-5.39-5.39A8 8 0 1 1 10 2Zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z"/></svg>
+      </button>
+      <button id="btn-shutter" aria-label="Jetzt scannen"><span></span></button>
+      <button id="btn-torch" class="icon-btn" aria-label="Taschenlampe" hidden>
+        <svg viewBox="0 0 24 24"><path d="M7 2h10v4l-3 4v12h-4V10L7 6V2Zm2 2v1.34L12 9.3l3-3.96V4H9Z"/></svg>
+      </button>
+      <span id="cart-total" class="pill small" hidden></span>
+    </footer>
+  </main>
+
+  <!-- Ergebnis-Sheet -->
+  <section id="sheet" class="sheet" aria-hidden="true">
+    <div class="sheet-handle" id="sheet-handle"><span></span></div>
+    <div class="sheet-body" id="sheet-body"></div>
+  </section>
+  <div id="add-bar" class="add-bar" hidden>
+    <label class="money-input"><input id="add-price" type="text" inputmode="decimal" aria-label="Dein Preis"><span>€</span></label>
+    <button id="btn-add" class="btn primary cart">
+      <svg viewBox="0 0 24 24"><path d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM5.2 4H2V2h4.8l.9 2H21l-3.4 8.1a2 2 0 0 1-1.84 1.23H8.1l-.9 1.67h11.8v2H4l2.7-4.9L5.2 4Z"/></svg>
+      In den Korb
+    </button>
+  </div>
+
+  <!-- Warenkorb / Listen -->
+  <section id="cart-view" class="page" hidden>
+    <header class="page-head">
+      <button class="icon-btn back" data-close="cart-view" aria-label="Zurück">
+        <svg viewBox="0 0 24 24"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12l6.6-6.6Z"/></svg>
+      </button>
+      <select id="list-select" aria-label="Liste wählen"></select>
+      <button id="btn-list-menu" class="icon-btn" aria-label="Listen-Optionen">
+        <svg viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>
+      </button>
+    </header>
+    <div id="cart-summary" class="cart-summary"></div>
+    <ul id="cart-items" class="cart-items"></ul>
+  </section>
+
+  <!-- Einstellungen -->
+  <section id="settings-view" class="page" hidden>
+    <header class="page-head">
+      <button class="icon-btn back" data-close="settings-view" aria-label="Zurück">
+        <svg viewBox="0 0 24 24"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12l6.6-6.6Z"/></svg>
+      </button>
+      <h2>Einstellungen</h2>
+      <span></span>
+    </header>
+    <form id="settings-form" class="settings">
+      <label>Claude API-Key <small>(nur lokal auf deinem Handy gespeichert)</small>
+        <input name="apiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
+      </label>
+      <label>Erkennungs-Modell
+        <select name="scanModel">
+          <option value="claude-opus-5">Claude Opus 5 – genauer</option>
+          <option value="claude-haiku-4-5">Claude Haiku 4.5 – am schnellsten</option>
+        </select>
+      </label>
+      <label class="row"><input type="checkbox" name="aiGraded"> PSA-Preise per KI-Websuche nachladen (mit Quellen, ~10–20 s)</label>
+      <label>PriceCharting API-Token <small>(optional, für schnelle PSA 7–10 Preise)</small>
+        <input name="pcToken" type="password" autocomplete="off" placeholder="leer lassen = nicht nutzen">
+      </label>
+      <label>Pokémon TCG API-Key <small>(optional, höheres Limit)</small>
+        <input name="tcgKey" type="password" autocomplete="off">
+      </label>
+      <label>USD → EUR Kurs <small>(wird automatisch geladen, falls möglich)</small>
+        <input name="usdEur" type="number" step="0.0001" min="0">
+      </label>
+      <label class="row"><input type="checkbox" name="vibrate"> Vibration bei Erkennung</label>
+      <button type="submit" class="btn primary">Speichern</button>
+      <p class="hint">Tipp: Im Browser-Menü „Zum Startbildschirm hinzufügen“ – dann startet PokéScan wie eine App im Vollbild.</p>
+    </form>
+  </section>
+
+  <!-- Manuelle Suche -->
+  <dialog id="search-dialog">
+    <form method="dialog" id="search-form">
+      <h3>Karte suchen</h3>
+      <input name="q" placeholder="z. B. Glurak 4/102 oder Pikachu SVP 27" autocomplete="off">
+      <div class="dialog-actions">
+        <button value="cancel" class="btn">Abbrechen</button>
+        <button value="ok" class="btn primary">Suchen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+  <canvas id="work-canvas" hidden></canvas>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
