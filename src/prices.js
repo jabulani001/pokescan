@@ -117,8 +117,29 @@ function score(card, scan) {
   if (scan.set_total && card.setTotal === cleanNumber(scan.set_total)) s += 4;
   if (scan.set_code && card.setCode && card.setCode.toLowerCase() === scan.set_code.toLowerCase()) s += 4;
   if (scan.set_name && card.setName && card.setName.toLowerCase().includes(scan.set_name.toLowerCase())) s += 2;
-  if (scan.name_en && card.name.toLowerCase() === scan.name_en.toLowerCase()) s += 3;
+  if (scan.name_en) {
+    const want = scan.name_en.toLowerCase();
+    const have = card.name.toLowerCase();
+    if (have === want) s += 3;
+    else if (near(have.split(' ')[0], want.split(' ')[0])) s += 2;
+  }
   return s;
+}
+
+// Ähnlich genug trotz OCR-Fehlern? (Levenshtein ≤ 2)
+function near(a, b) {
+  if (!a || !b || Math.abs(a.length - b.length) > 2) return false;
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diag = tmp;
+    }
+  }
+  return prev[b.length] <= 2;
 }
 
 /** Liefert Kandidaten, bester Treffer zuerst. */
@@ -135,6 +156,7 @@ export async function findCards(scan) {
     const lists = await Promise.allSettled(tries);
     results = lists.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
     if (!results.length && name) results = await ptcgQuery(`name:"${esc(name)}"`, 24);
+    if (!results.length && number && !total) results = await ptcgQuery(`number:"${esc(number)}"`, 24);
     if (!results.length && name.includes(' ')) results = await ptcgQuery(`name:"${esc(name.split(' ')[0])}*"`, 24);
   } catch (err) {
     console.warn('pokemontcg.io fehlgeschlagen, nutze TCGdex', err);

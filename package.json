@@ -4,10 +4,13 @@
   "description": "PokéScan – Pokémon-Karten per Handykamera erkennen und bewerten",
   "scripts": {
     "build": "esbuild src/main.js --bundle --format=esm --minify --target=es2020,safari15 --outfile=app.js",
-    "dev": "npm run build -- --watch & python3 -m http.server 8080"
+    "dev": "npm run build -- --watch & python3 -m http.server 8080",
+    "vendor": "mkdir -p vendor/tesseract/lang && cp node_modules/tesseract.js/dist/worker.min.js vendor/tesseract/ && cp node_modules/tesseract.js-core/tesseract-core-{lstm,simd-lstm,relaxedsimd-lstm}.wasm.js vendor/tesseract/ && cp node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz vendor/tesseract/lang/"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.128.0"
+    "@anthropic-ai/sdk": "^0.128.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"

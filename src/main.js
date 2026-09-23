@@ -2,6 +2,7 @@ import { settings, saveSettings, cart } from './store.js';
 import { Camera } from './camera.js';
 import { Sheet } from './sheet.js';
 import { recognizeCard, searchGradedPrices } from './claude.js';
+import { recognizeFree, loadOcr } from './ocr.js';
 import {
   findCards, parseQuery, rawPrices, priceChartingGrades, evidenceLinks, refreshFx, usdToEur, fmt,
 } from './prices.js';
@@ -68,28 +69,33 @@ function scanLoop() {
       prevPrint = print;
       if (moving) stableSince = now;
       const isNewScene = Camera.diff(print, lastSentPrint) > NEW_SCENE_DIFF;
-      if (!moving && now - stableSince > STABLE_MS && isNewScene && print.contrast > 18 && now - lastSentAt > MIN_GAP_MS) {
-        scan(print);
+      const gap = settings.engine === 'free' ? 700 : MIN_GAP_MS;
+      if (!moving && now - stableSince > STABLE_MS && isNewScene && print.contrast > 18 && now - lastSentAt > gap) {
+        scan(print, true);
       }
     }
   }
   setTimeout(scanLoop, 120);
 }
 
-async function scan(print = camera.fingerprint()) {
+async function scan(print = camera.fingerprint(), auto = false) {
   if (inFlight) return;
-  if (!settings.apiKey) { openSettings(); toast('Bitte zuerst deinen Claude API-Key eintragen'); return; }
+  const free = settings.engine === 'free';
+  if (!free && !settings.apiKey) { openSettings(); toast('Bitte API-Key eintragen oder „Kostenlos“ wählen'); return; }
   inFlight = true;
   lastSentPrint = print;
   lastSentAt = performance.now();
-  status('Erkenne Karte…', 'busy');
+  status(free ? 'Lese Karte…' : 'Erkenne Karte…', 'busy');
   const myAbort = scanAbort = new AbortController();
   try {
-    const img = camera.capture();
     const t0 = performance.now();
-    const result = await recognizeCard(img, myAbort.signal);
-    if (!result.found || result.confidence < 0.35) {
-      status('Keine Karte erkannt – näher ran oder Auslöser tippen');
+    const result = free ? await recognizeFree(camera) : await recognizeCard(camera.capture(), myAbort.signal);
+    if (myAbort.signal.aborted) return;
+    // Auto-Scan im Gratis-Modus: nur mit gelesener Nummer, sonst weiter versuchen
+    const ok = result.found && result.confidence >= 0.35 && !(free && auto && result.ocrOnlyName);
+    if (!ok) {
+      if (free) lastSentPrint = null;
+      status(free ? 'Nummer nicht lesbar – Karte genau in den Rahmen, ruhig halten' : 'Keine Karte erkannt – näher ran oder Auslöser tippen');
       return;
     }
     if (settings.vibrate) navigator.vibrate?.([30, 40, 30]);
@@ -370,8 +376,10 @@ $('settings-form').addEventListener('submit', (e) => {
     if (!el.name) continue;
     patch[el.name] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value.trim();
   }
+  const engineChanged = patch.engine !== settings.engine;
   saveSettings(patch);
   $('settings-view').hidden = true;
+  if (engineChanged && settings.engine === 'free') preloadOcr().then(() => status('Karte in den Rahmen halten'));
   toast('Gespeichert');
 });
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => { $(b.dataset.close).hidden = true; }));
@@ -411,14 +419,27 @@ $('search-dialog').addEventListener('close', () => {
 
 // ---------- Start ----------
 
+async function preloadOcr() {
+  status('Texterkennung lädt… (nur beim 1. Mal ~7 MB)', 'busy');
+  try {
+    await loadOcr((m) => {
+      if (m.status && m.progress != null && m.progress < 1) status(`Texterkennung lädt… ${Math.round(m.progress * 100)} %`, 'busy');
+    });
+  } catch (err) {
+    console.error(err);
+    status('Texterkennung konnte nicht laden', 'err');
+  }
+}
+
 async function start() {
   renderAuto();
   renderCartBadge();
   refreshFx();
-  if (!settings.apiKey) openSettings();
+  if (settings.engine !== 'free' && !settings.apiKey) openSettings();
   try {
     await camera.start();
     $('btn-torch').hidden = !camera.torchSupported;
+    if (settings.engine === 'free') await preloadOcr();
     status(settings.autoScan ? 'Karte in den Rahmen halten' : 'Auslöser tippen zum Scannen');
     scanLoop();
   } catch (err) {

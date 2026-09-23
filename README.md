@@ -21,6 +21,13 @@ Der Korb unterstützt mehrere Listen (z. B. „Einkauf“, „Meine Sammlung“)
 | Lupe | Manuelle Suche, z. B. `Glurak 4/102` |
 | „Andere Version?“ | Falls das Set falsch erkannt wurde, andere Druckversion wählen |
 
+## Zwei Erkennungs-Modi
+
+- **Kostenlos (Standard):** Texterkennung (Tesseract) läuft direkt auf dem Handy. Sie liest die Nummer unten (z. B. `4/102`) und den Namen oben. Beim ersten Start werden einmalig ~7 MB geladen. Die Karte muss dafür möglichst genau im Rahmen liegen und die Nummer scharf sein.
+- **Claude KI:** genauer, auch bei Hüllen, Spiegelungen und schrägem Winkel. Liest auch den Preis auf der Hülle. Braucht einen API-Key.
+
+Umschalten über das Zahnrad → *Erkennung*.
+
 ## Wie es funktioniert
 
 1. **Erkennung:** Nur der Bildausschnitt im Rahmen geht als JPEG an die Claude-API (Structured Output → Name, Nummer, Set, Variante, Slab-Note, Standpreis). Der Auto-Scan schickt erst ein Bild, wenn es ruhig ist und sich seit dem letzten Scan verändert hat. So bleibt es schnell, und es werden keine unnötigen Anfragen verschickt.

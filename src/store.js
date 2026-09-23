@@ -4,6 +4,7 @@ const SETTINGS_KEY = 'pokescan.settings';
 const LISTS_KEY = 'pokescan.lists';
 
 const DEFAULT_SETTINGS = {
+  engine: 'free',
   apiKey: '',
   scanModel: 'claude-opus-5',
   aiGraded: true,

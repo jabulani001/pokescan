@@ -1,5 +1,6 @@
-// App-Shell offline cachen, damit PokéScan sofort startet. API-Aufrufe gehen immer ins Netz.
-const CACHE = 'pokescan-v1';
+// Offline-Cache. App-Dateien: erst Netz (immer aktuell), sonst Cache.
+// Texterkennung (vendor/): erst Cache, weil groß und unveränderlich.
+const CACHE = 'pokescan-v2';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -15,13 +16,15 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  // Stale-while-revalidate: sofort aus dem Cache, im Hintergrund aktualisieren
   e.respondWith(caches.open(CACHE).then(async (cache) => {
     const cached = await cache.match(e.request);
-    const fresh = fetch(e.request).then((res) => {
+    if (cached && url.pathname.includes('/vendor/')) return cached;
+    try {
+      const res = await fetch(e.request);
       if (res.ok) cache.put(e.request, res.clone());
       return res;
-    }).catch(() => cached);
-    return cached || fresh;
+    } catch {
+      return cached || Response.error();
+    }
   }));
 });

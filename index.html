@@ -82,7 +82,13 @@
       <span></span>
     </header>
     <form id="settings-form" class="settings">
-      <label>Claude API-Key <small>(nur lokal auf deinem Handy gespeichert)</small>
+      <label>Erkennung
+        <select name="engine">
+          <option value="free">Kostenlos – Texterkennung auf dem Handy</option>
+          <option value="claude">Claude KI – genauer, braucht API-Key</option>
+        </select>
+      </label>
+      <label>Claude API-Key <small>(nur für Claude KI, nur lokal auf deinem Handy gespeichert)</small>
         <input name="apiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
       </label>
       <label>Erkennungs-Modell
