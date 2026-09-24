@@ -192,9 +192,16 @@ async function validate(model, cards, emb, dim, scale, sample = 200) {
   const picks = Array.from({ length: Math.min(sample, cards.length) }, () => Math.floor(rnd() * cards.length));
   let top1 = 0, top5 = 0, top1Name = 0;
   const posSims = [], negSims = [];
-  for (const idx of picks) {
+  await fs.mkdir(path.join(OUT, 'samples'), { recursive: true });
+  for (const [n, idx] of picks.entries()) {
     const c = cards[idx];
-    const q = await distort(await download(c.img), rnd);
+    const orig = await download(c.img);
+    const q = await distort(orig, rnd);
+    // Ein paar Beispiele für lokale Tests der App behalten
+    if (n < 4) {
+      await fs.writeFile(path.join(OUT, 'samples', `${c.id}.png`), orig);
+      await fs.writeFile(path.join(OUT, 'samples', `${c.id}-foto.jpg`), q);
+    }
     const [v] = await embedBuffers(model, [q]);
     const res = search(v, emb, dim, cards.length).map(([i, s]) => [i, s / scale]);
     if (res[0][0] === idx) top1++;
@@ -221,7 +228,8 @@ async function validate(model, cards, emb, dim, scale, sample = 200) {
     positiveSim: { p10: q(posSims, 0.1), p50: q(posSims, 0.5), p90: q(posSims, 0.9) },
     negativeSim: { p50: q(negSims, 0.5), p90: q(negSims, 0.9), max: q(negSims, 1) },
   };
-  report.suggestedThreshold = +(Math.max(report.negativeSim.max + 0.02, report.positiveSim.p10 - 0.05)).toFixed(3);
+  // Mitte zwischen „keine Karte“ und schlechten Treffern – echte Fotos sind schwieriger als simulierte
+  report.suggestedThreshold = +((report.negativeSim.max + report.positiveSim.p10) / 2).toFixed(3);
   return report;
 }
 
