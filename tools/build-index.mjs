@@ -33,7 +33,7 @@ env.allowLocalModels = false;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
-async function fetchRetry(url, opts = {}, tries = 6) {
+async function fetchRetry(url, opts = {}, tries = 10) {
   for (let i = 0; ; i++) {
     try {
       const res = await fetch(url, { ...opts, signal: AbortSignal.timeout(60000) });
@@ -42,7 +42,7 @@ async function fetchRetry(url, opts = {}, tries = 6) {
       return res;
     } catch (err) {
       if (err.fatal || i >= tries - 1) throw err;
-      await sleep(2000 * 2 ** i);
+      await sleep(Math.min(30000, 2000 * 2 ** i));
     }
   }
 }
@@ -52,9 +52,21 @@ async function fetchRetry(url, opts = {}, tries = 6) {
 async function fetchAllCards() {
   const cards = [];
   const headers = API_KEY ? { 'X-Api-Key': API_KEY } : {};
-  for (let page = 1; ; page++) {
-    const url = `${API}?page=${page}&pageSize=250&orderBy=set.releaseDate,number&select=id,name,number,rarity,set,images`;
-    const d = await (await fetchRetry(url, { headers })).json();
+  const PAGE = 100; // kleinere Seiten → weniger Server-Fehler bei pokemontcg.io
+  let total = Infinity, skipped = 0;
+  for (let page = 1; (page - 1) * PAGE < total; page++) {
+    const url = `${API}?page=${page}&pageSize=${PAGE}&orderBy=set.releaseDate,number&select=id,name,number,rarity,set,images`;
+    let d;
+    try {
+      d = await (await fetchRetry(url, { headers })).json();
+    } catch (err) {
+      // Einzelne kaputte Seite überspringen – der nächste Lauf holt sie nach
+      skipped++;
+      log(`Seite ${page} übersprungen: ${err.message}`);
+      if (skipped > 10) throw new Error('Zu viele Fehler bei pokemontcg.io');
+      continue;
+    }
+    total = d.totalCount;
     for (const c of d.data) {
       if (!c.images?.small) continue;
       cards.push({
@@ -71,7 +83,7 @@ async function fetchAllCards() {
       });
     }
     log(`Seite ${page}: ${cards.length} / ${d.totalCount}`);
-    if (page * 250 >= d.totalCount || !d.data.length) break;
+    if (!d.data.length) break;
     if (LIMIT && cards.length >= LIMIT) break;
   }
   return LIMIT ? cards.slice(0, LIMIT) : cards;
