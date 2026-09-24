@@ -79,8 +79,9 @@ export class Camera {
   }
 
   /** Rahmeninhalt als Canvas (für den Bildvergleich). */
-  frameCanvas(maxSide = 512) {
-    const r = this.cropRect(0);
+  frameCanvas(maxSide = 512, inset = 0) {
+    // inset: etwas nach innen zuschneiden – ohne Hüllenrand/Hintergrund erkennt der Bildvergleich deutlich besser
+    const r = this.cropRect(-inset);
     const s = Math.min(1, maxSide / Math.max(r.w, r.h));
     const c = document.createElement('canvas');
     c.width = Math.round(r.w * s);

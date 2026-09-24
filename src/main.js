@@ -111,17 +111,19 @@ async function scan(print = camera.fingerprint(), auto = false) {
 
 // Gratis-Erkennung: Bildvergleich mit allen Karten
 async function recognizeByImage(auto) {
-  const hits = await matchCard(camera.frameCanvas());
+  const hits = await matchCard(camera.frameCanvas(512, 0.03));
   const threshold = await matchThreshold();
   const best = hits[0];
   console.info('Bildvergleich', hits.slice(0, 5).map((h) => `${h.card.name} ${h.card.set} ${h.card.number} ${h.sim.toFixed(3)}`));
-  // Auto-Scan nur bei klarer Übereinstimmung; Auslöser zeigt immer die besten Treffer
-  const found = !!best && (!auto || best.sim >= threshold);
+  // Kalibriert mit echten Binder-Fotos: Karten ohne Treffer in der Datenbank erreichen bis ~0,8,
+  // richtige Treffer meist 0,7–0,9. Sicher ist ein Treffer vor allem, wenn er klar vor Platz 2 liegt.
+  const margin = hits.length > 1 ? best.sim - hits[1].sim : 1;
+  const found = !!best && (!auto || best.sim >= Math.max(threshold, 0.6));
   const c = best?.card || {};
   return {
     found, name_en: c.name, printed_name: c.name, number: c.number, set_total: c.total, set_code: c.code, set_name: c.set,
     language: '', variant: 'unknown', graded: false, grading_company: '', grade: '', asking_price: 0, asking_currency: '',
-    confidence: best?.sim ?? 0, matches: hits,
+    confidence: best?.sim ?? 0, matches: hits, uncertain: margin < 0.04,
   };
 }
 
@@ -192,7 +194,8 @@ function selectCard(card) {
       <span class="src"><a href="${esc(ev.ebayGrade(g))}" target="_blank" rel="noopener">eBay verkauft ↗</a></span>
       <span class="val"><span class="loading">${settings.pcToken || settings.aiGraded ? 'lädt…' : '–'}</span></span></div>`).join('');
 
-  const alts = me.candidates.length > 1 ? `<h4 class="section">Andere Version?</h4><div class="alts">${me.candidates.slice(0, 12).map((c, i) =>
+  const unsure = scanData.uncertain && me.candidates[0] === card;
+  const alts = me.candidates.length > 1 ? `<h4 class="section">${unsure ? 'Welche ist es? Tippe die richtige an' : 'Andere Version?'}</h4><div class="alts">${me.candidates.slice(0, 12).map((c, i) =>
     `<button data-alt="${i}" class="${c.id === card.id ? 'active' : ''}"><img src="${esc(c.image)}" loading="lazy" alt="">
       ${esc(c.setName)}<br>${esc(c.number)}/${esc(c.setTotal)}</button>`).join('')}</div>` : '';
 
@@ -202,16 +205,17 @@ function selectCard(card) {
       <div>
         <h2>${esc(card.name)}</h2>
         <div class="meta">${esc(card.setName)} · ${esc(card.number)}/${esc(card.setTotal)}${card.releaseDate ? ' · ' + esc(card.releaseDate.slice(0, 4)) : ''}</div>
-        <div class="tags">${tags}</div>
+        <div class="tags">${unsure ? '<span class="tag bad">Unsicher – bitte prüfen</span>' : ''}${tags}</div>
       </div>
     </div>
+    ${unsure ? alts : ''}
     ${askingHtml}
     <div class="prices">${rawRows}${gradeRows}</div>
     <div id="graded-note" class="note"></div>
     <h4 class="section">Beweise &amp; Quellen</h4>
     <div class="links">${ev.links.map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join('')}</div>
     <ul id="ai-sources" class="ai-sources"></ul>
-    ${alts}
+    ${unsure ? '' : alts}
     <p class="note">Erkannt: ${esc(scanData.printed_name)} ${esc(scanData.number)}${scanData.set_total ? '/' + esc(scanData.set_total) : ''} ${esc(scanData.set_code)} · ${card.sim != null ? `Bild-Ähnlichkeit ${Math.round(card.sim * 100)} %` : `Sicherheit ${Math.round((scanData.confidence || 0) * 100)} %`}</p>`;
 
   $('add-price').value = moneyInput(me.rawEur);
