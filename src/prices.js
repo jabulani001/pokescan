@@ -174,6 +174,25 @@ export async function findCards(scan) {
     .map((x) => x.c);
 }
 
+/** Treffer aus dem Bildvergleich (gleiche Reihenfolge) mit aktuellen Preisen anreichern. */
+export async function cardsByIds(matches) {
+  const ids = matches.map((m) => m.card.id);
+  let full = [];
+  try {
+    full = await ptcgQuery(ids.map((id) => `id:"${esc(id)}"`).join(' OR '), ids.length);
+  } catch (err) {
+    console.warn('Preise nicht geladen', err);
+  }
+  const byId = new Map(full.map((c) => [c.id, c]));
+  return matches.map(({ card: c, sim }) => ({
+    ...(byId.get(c.id) || {
+      source: 'index', id: c.id, name: c.name, number: c.number, setTotal: c.total, setName: c.set, setCode: c.code,
+      releaseDate: c.date, rarity: c.rarity, image: c.img, imageLarge: c.img, cardmarket: null, tcgplayer: null,
+    }),
+    sim,
+  }));
+}
+
 /** Freitextsuche („Glurak 4/102“, „Pikachu SVP 27“) → scan-ähnliches Objekt. */
 export function parseQuery(q) {
   const m = q.match(/([A-Za-z]{0,6}\d+[a-z]?)\s*(?:\/\s*(\d+))?\s*$/);

@@ -2,9 +2,9 @@ import { settings, saveSettings, cart } from './store.js';
 import { Camera } from './camera.js';
 import { Sheet } from './sheet.js';
 import { recognizeCard, searchGradedPrices } from './claude.js';
-import { recognizeFree, loadOcr } from './ocr.js';
+import { loadMatcher, matchCard, matchThreshold } from './match.js';
 import {
-  findCards, parseQuery, rawPrices, priceChartingGrades, evidenceLinks, refreshFx, usdToEur, fmt,
+  findCards, cardsByIds, parseQuery, rawPrices, priceChartingGrades, evidenceLinks, refreshFx, usdToEur, fmt,
 } from './prices.js';
 
 const $ = (id) => document.getElementById(id);
@@ -85,17 +85,15 @@ async function scan(print = camera.fingerprint(), auto = false) {
   inFlight = true;
   lastSentPrint = print;
   lastSentAt = performance.now();
-  status(free ? 'Lese Karte…' : 'Erkenne Karte…', 'busy');
+  if (!free) status('Erkenne Karte…', 'busy');
   const myAbort = scanAbort = new AbortController();
   try {
     const t0 = performance.now();
-    const result = free ? await recognizeFree(camera) : await recognizeCard(camera.capture(), myAbort.signal);
+    const result = free ? await recognizeByImage(auto) : await recognizeCard(camera.capture(), myAbort.signal);
     if (myAbort.signal.aborted) return;
-    // Auto-Scan im Gratis-Modus: nur mit gelesener Nummer, sonst weiter versuchen
-    const ok = result.found && result.confidence >= 0.35 && !(free && auto && result.ocrOnlyName);
-    if (!ok) {
-      if (free) lastSentPrint = null;
-      status(free ? 'Nummer nicht lesbar – Karte genau in den Rahmen, ruhig halten' : 'Keine Karte erkannt – näher ran oder Auslöser tippen');
+    if (!result.found || result.confidence < (free ? 0 : 0.35)) {
+      if (free) lastSentPrint = null; // lokal & gratis → beim Ruhighalten weiter versuchen
+      status(free ? 'Karte in den Rahmen halten' : 'Keine Karte erkannt – näher ran oder Auslöser tippen');
       return;
     }
     if (settings.vibrate) navigator.vibrate?.([30, 40, 30]);
@@ -109,6 +107,22 @@ async function scan(print = camera.fingerprint(), auto = false) {
   } finally {
     if (scanAbort === myAbort) inFlight = false;
   }
+}
+
+// Gratis-Erkennung: Bildvergleich mit allen Karten
+async function recognizeByImage(auto) {
+  const hits = await matchCard(camera.frameCanvas());
+  const threshold = await matchThreshold();
+  const best = hits[0];
+  console.info('Bildvergleich', hits.slice(0, 5).map((h) => `${h.card.name} ${h.card.set} ${h.card.number} ${h.sim.toFixed(3)}`));
+  // Auto-Scan nur bei klarer Übereinstimmung; Auslöser zeigt immer die besten Treffer
+  const found = !!best && (!auto || best.sim >= threshold);
+  const c = best?.card || {};
+  return {
+    found, name_en: c.name, printed_name: c.name, number: c.number, set_total: c.total, set_code: c.code, set_name: c.set,
+    language: '', variant: 'unknown', graded: false, grading_company: '', grade: '', asking_price: 0, asking_currency: '',
+    confidence: best?.sim ?? 0, matches: hits,
+  };
 }
 
 // ---------- Ergebnis-Sheet ----------
@@ -125,7 +139,7 @@ async function showResult(scanData) {
   $('add-bar').hidden = false;
   sheet.open();
 
-  const candidates = await findCards(scanData);
+  const candidates = scanData.matches ? await cardsByIds(scanData.matches) : await findCards(scanData);
   if (me !== current) return;
   me.candidates = candidates;
   if (!candidates.length) {
@@ -198,7 +212,7 @@ function selectCard(card) {
     <div class="links">${ev.links.map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join('')}</div>
     <ul id="ai-sources" class="ai-sources"></ul>
     ${alts}
-    <p class="note">Erkannt: ${esc(scanData.printed_name)} ${esc(scanData.number)}${scanData.set_total ? '/' + esc(scanData.set_total) : ''} ${esc(scanData.set_code)} · Sicherheit ${Math.round((scanData.confidence || 0) * 100)} %</p>`;
+    <p class="note">Erkannt: ${esc(scanData.printed_name)} ${esc(scanData.number)}${scanData.set_total ? '/' + esc(scanData.set_total) : ''} ${esc(scanData.set_code)} · ${card.sim != null ? `Bild-Ähnlichkeit ${Math.round(card.sim * 100)} %` : `Sicherheit ${Math.round((scanData.confidence || 0) * 100)} %`}</p>`;
 
   $('add-price').value = moneyInput(me.rawEur);
   $('use-asking')?.addEventListener('click', () => { $('add-price').value = moneyInput(asking); $('add-price').focus(); });
@@ -379,7 +393,7 @@ $('settings-form').addEventListener('submit', (e) => {
   const engineChanged = patch.engine !== settings.engine;
   saveSettings(patch);
   $('settings-view').hidden = true;
-  if (engineChanged && settings.engine === 'free') preloadOcr().then(() => status('Karte in den Rahmen halten'));
+  if (engineChanged && settings.engine === 'free') preloadMatcher().then((ok) => ok && status('Karte in den Rahmen halten'));
   toast('Gespeichert');
 });
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => { $(b.dataset.close).hidden = true; }));
@@ -419,15 +433,15 @@ $('search-dialog').addEventListener('close', () => {
 
 // ---------- Start ----------
 
-async function preloadOcr() {
-  status('Texterkennung lädt… (nur beim 1. Mal ~7 MB)', 'busy');
+async function preloadMatcher() {
+  status('Bilderkennung lädt… (nur beim 1. Mal)', 'busy');
   try {
-    await loadOcr((m) => {
-      if (m.status && m.progress != null && m.progress < 1) status(`Texterkennung lädt… ${Math.round(m.progress * 100)} %`, 'busy');
-    });
+    await loadMatcher((p) => status(`Bilderkennung lädt… ${Math.round(p * 100)} % (nur beim 1. Mal)`, 'busy'));
+    return true;
   } catch (err) {
     console.error(err);
-    status('Texterkennung konnte nicht laden', 'err');
+    status(`Bilderkennung nicht verfügbar: ${err.message}`, 'err');
+    return false;
   }
 }
 
@@ -439,8 +453,9 @@ async function start() {
   try {
     await camera.start();
     $('btn-torch').hidden = !camera.torchSupported;
-    if (settings.engine === 'free') await preloadOcr();
-    status(settings.autoScan ? 'Karte in den Rahmen halten' : 'Auslöser tippen zum Scannen');
+    if (settings.engine !== 'free' || await preloadMatcher()) {
+      status(settings.autoScan ? 'Karte in den Rahmen halten' : 'Auslöser tippen zum Scannen');
+    }
     scanLoop();
   } catch (err) {
     console.error(err);

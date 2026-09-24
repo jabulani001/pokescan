@@ -1,6 +1,6 @@
 // Offline-Cache. App-Dateien: erst Netz (immer aktuell), sonst Cache.
-// Texterkennung (vendor/): erst Cache, weil groß und unveränderlich.
-const CACHE = 'pokescan-v2';
+// Bild-KI (vendor/, models/): erst Cache, weil groß und selten geändert.
+const CACHE = 'pokescan-v3';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -18,7 +18,7 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   e.respondWith(caches.open(CACHE).then(async (cache) => {
     const cached = await cache.match(e.request);
-    if (cached && url.pathname.includes('/vendor/')) return cached;
+    if (cached && /\/(vendor|models)\//.test(url.pathname)) return cached;
     try {
       const res = await fetch(e.request);
       if (res.ok) cache.put(e.request, res.clone());

@@ -78,43 +78,14 @@ export class Camera {
     return s / a.length;
   }
 
-  /**
-   * Ausschnitt relativ zum Kartenrahmen (0..1, darf etwas über den Rand gehen) als
-   * kontrastverstärktes Graustufen-Canvas für die Texterkennung.
-   */
-  captureRegion(rx, ry, rw, rh, targetWidth = 1400) {
-    const f = this.cropRect(0);
-    const vw = this.video.videoWidth, vh = this.video.videoHeight;
-    let x = f.x + rx * f.w, y = f.y + ry * f.h, w = rw * f.w, h = rh * f.h;
-    x = Math.max(0, x); y = Math.max(0, y);
-    w = Math.min(vw - x, w); h = Math.min(vh - y, h);
-    const scale = targetWidth / w;
+  /** Rahmeninhalt als Canvas (für den Bildvergleich). */
+  frameCanvas(maxSide = 512) {
+    const r = this.cropRect(0);
+    const s = Math.min(1, maxSide / Math.max(r.w, r.h));
     const c = document.createElement('canvas');
-    c.width = Math.round(w * scale);
-    c.height = Math.round(h * scale);
-    const ctx = c.getContext('2d', { willReadFrequently: true });
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(this.video, x, y, w, h, 0, 0, c.width, c.height);
-    // Graustufen + Kontrast strecken (1. bis 99. Perzentil)
-    const img = ctx.getImageData(0, 0, c.width, c.height);
-    const d = img.data;
-    const hist = new Uint32Array(256);
-    for (let i = 0; i < d.length; i += 4) {
-      const g = (d[i] * 3 + d[i + 1] * 6 + d[i + 2]) / 10 | 0;
-      d[i] = g;
-      hist[g]++;
-    }
-    const n = d.length / 4;
-    let lo = 0, hi = 255, acc = 0;
-    while (lo < 255 && (acc += hist[lo]) < n * 0.01) lo++;
-    acc = 0;
-    while (hi > 0 && (acc += hist[hi]) < n * 0.01) hi--;
-    const span = Math.max(1, hi - lo);
-    for (let i = 0; i < d.length; i += 4) {
-      const v = Math.max(0, Math.min(255, ((d[i] - lo) * 255) / span));
-      d[i] = d[i + 1] = d[i + 2] = v;
-    }
-    ctx.putImageData(img, 0, 0);
+    c.width = Math.round(r.w * s);
+    c.height = Math.round(r.h * s);
+    c.getContext('2d').drawImage(this.video, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
     return c;
   }
 

@@ -23,10 +23,10 @@ Der Korb unterstützt mehrere Listen (z. B. „Einkauf“, „Meine Sammlung“)
 
 ## Zwei Erkennungs-Modi
 
-- **Kostenlos (Standard):** Texterkennung (Tesseract) läuft direkt auf dem Handy. Sie liest die Nummer unten (z. B. `4/102`) und den Namen oben. Beim ersten Start werden einmalig ~7 MB geladen. Die Karte muss dafür möglichst genau im Rahmen liegen und die Nummer scharf sein.
-- **Claude KI:** genauer, auch bei Hüllen, Spiegelungen und schrägem Winkel. Liest auch den Preis auf der Hülle. Braucht einen API-Key.
+- **Kostenlos (Standard): Bildvergleich auf dem Handy.** Eine kleine Bild-KI macht aus dem Kamerabild einen „Fingerabdruck“ und sucht die ähnlichste von ~20.000 Karten im Index. Kein Konto, keine Kosten. Deutsche Karten gehen auch (gleiches Artwork). Beim ersten Start werden Modell und Index einmalig geladen.
+- **Claude KI:** liest zusätzlich Preis-Sticker und Slab-Noten. Braucht einen API-Key.
 
-Umschalten über das Zahnrad → *Erkennung*.
+Den Index baut die GitHub Action *Build card index* (`tools/build-index.mjs`): Sie lädt alle Kartenbilder von pokemontcg.io, berechnet die Fingerabdrücke, testet die Trefferquote mit simulierten Handyfotos (`index/meta.json` → `validation`) und veröffentlicht alles. Sie läuft jeden Montag automatisch für neue Karten.
 
 ## Wie es funktioniert
 
