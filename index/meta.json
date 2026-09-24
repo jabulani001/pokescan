@@ -2,25 +2,25 @@
   "model": "onnx-community/dinov3-vits16-pretrain-lvd1689m-ONNX",
   "dtype": "q8",
   "dim": 384,
-  "scale": 547,
-  "count": 300,
-  "built": "2026-09-24T15:48:11.950Z",
-  "threshold": 0.695,
+  "scale": 441,
+  "count": 20518,
+  "built": "2026-09-24T16:56:00.109Z",
+  "threshold": 0.536,
   "validation": {
     "samples": 200,
-    "top1": 0.955,
-    "top5": 0.995,
-    "top1SameName": 0.99,
+    "top1": 0.83,
+    "top5": 0.945,
+    "top1SameName": 0.87,
     "positiveSim": {
-      "p10": 0.745,
-      "p50": 0.83,
-      "p90": 0.89
+      "p10": 0.771,
+      "p50": 0.841,
+      "p90": 0.883
     },
     "negativeSim": {
-      "p50": 0.152,
-      "p90": 0.202,
-      "max": 0.229
+      "p50": 0.193,
+      "p90": 0.234,
+      "max": 0.302
     },
-    "suggestedThreshold": 0.695
+    "suggestedThreshold": 0.536
   }
 }
