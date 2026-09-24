@@ -9,11 +9,13 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
+    "@huggingface/transformers": "^4.3.0",
     "@tesseract.js-data/eng": "^1.0.0",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "sharp": "^0.35.4"
   },
   "private": true
 }

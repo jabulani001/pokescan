@@ -1,0 +1,44 @@
+name: Build card index
+
+on:
+  workflow_dispatch:
+    inputs:
+      card_limit:
+        description: "Nur N Karten (0 = alle)"
+        default: "0"
+  schedule:
+    - cron: "0 4 * * 1" # jeden Montag neue Karten nachtragen
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-index
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Index bauen
+        run: node tools/build-index.mjs
+        env:
+          POKEMONTCG_API_KEY: ${{ secrets.POKEMONTCG_API_KEY }}
+          CARD_LIMIT: ${{ github.event.inputs.card_limit || '0' }}
+      - name: Commit + auf gh-pages veröffentlichen
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index models
+          git diff --cached --quiet && echo "Keine Änderungen" && exit 0
+          git commit -m "Kartenindex aktualisiert ($(jq -r .count index/meta.json) Karten)"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          git push --force origin HEAD:gh-pages
