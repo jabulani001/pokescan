@@ -3,24 +3,24 @@
   "dtype": "q8",
   "dim": 384,
   "scale": 440,
-  "count": 20518,
-  "built": "2026-09-28T11:21:27.631Z",
-  "threshold": 0.536,
+  "count": 20419,
+  "built": "2026-10-05T12:06:19.921Z",
+  "threshold": 0.535,
   "validation": {
     "samples": 200,
-    "top1": 0.845,
-    "top5": 0.955,
-    "top1SameName": 0.89,
+    "top1": 0.84,
+    "top5": 0.95,
+    "top1SameName": 0.885,
     "positiveSim": {
-      "p10": 0.771,
-      "p50": 0.842,
-      "p90": 0.885
+      "p10": 0.767,
+      "p50": 0.837,
+      "p90": 0.881
     },
     "negativeSim": {
-      "p50": 0.191,
-      "p90": 0.233,
-      "max": 0.301
+      "p50": 0.193,
+      "p90": 0.235,
+      "max": 0.303
     },
-    "suggestedThreshold": 0.536
+    "suggestedThreshold": 0.535
   }
 }
